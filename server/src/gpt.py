@@ -12,7 +12,7 @@ def ask(question, chatlog=None):
     chatlog = chat_log_beginning
   prompt = f"{chatlog}Human: {question}\nAI:"
   response = completion.create(prompt=prompt, engine="davinci", stop=["\nHuman"], temperature=0.9, top_p=1, frequency_penalty=0, presence_penalty=0.6, best_of=1, max_tokens=150)
-  answer = response["choices"][0]["text"]
+  answer = response.choices[0].text.strip()
   return answer
 
 def add_to_chat_log(question, answer, chatlog=None):

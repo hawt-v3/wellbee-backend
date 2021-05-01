@@ -79,8 +79,6 @@ def sentiment_analysis():
             else:
                 return {"Sentiment" : "Neutral"}
 
-
-
     
 @app.route("/emotion", methods=["POST"])
 def emotion_analysis():
