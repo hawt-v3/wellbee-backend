@@ -1,6 +1,6 @@
 import openai
 
-openai.api_key = "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"
+openai.api_key = "<OPENAI KEY>"
 completion = openai.Completion()
 
 chat_log_beginning = """Human: Hey, I am looking for some advice. Any chance you can help?
@@ -14,9 +14,3 @@ def ask(question, chatlog=None):
   response = completion.create(prompt=prompt, engine="davinci", stop=["\nHuman"], temperature=0.9, top_p=1, frequency_penalty=0, presence_penalty=0.6, best_of=1, max_tokens=150)
   answer = response.choices[0].text.strip()
   return answer
-
-def add_to_chat_log(question, answer, chatlog=None):
-  if chatlog is None:
-    chatlog = chat_log_beginning
-
-  return f"{chatlog}Human: {question}\nAI: {answer}"

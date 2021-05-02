@@ -1,25 +1,40 @@
 from flask import Flask
 import os
-from data_preprocess import load_data, lower_case, tokenize_data
 from nltk import tokenize
 import numpy as np
-from gpt import ask
 from tensorflow.keras.models import load_model
+import openai
+import pandas as pd
+import nltk
+import pandas as pd
+import string
+from nltk import word_tokenize
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+import numpy as np
+import tensorflow as tf
+import matplotlib.pyplot as plt 
+import json
+import pickle
+from gpt import ask
+
 
 app = Flask(__name__)
 
+nltk.download("punkt")
 
-# load our machine learning models
-sentiment_model = load_model("models/sentiment_analysis.h5")
-emotion_model = load_model("models/emotion_analysis.h5")
+sentiment_model = load_model("sentiment_analysis.h5")
+emotion_model = load_model("emotion_analysis.h5")
+word_model = load_model("word_analysis.h5")
 
+with open("tokenizer.pickle", "rb") as f:
+  sentiment_tokenizer = pickle.load(f)
 
-# setting up our tokenizer to format our data properly
-df = load_data()
-sentences = df["sentences"]
-sentences = lower_case(sentences)
-tokenizer, _, _, _, _ = tokenize_data(sentences)
+with open("emotion_tokenizer.pickle", "rb") as f:
+  emotion_tokenizer = pickle.load(f)
 
+with open("word_tokenizer.pickle", "rb") as f:
+  word_tokenizer = pickle.load(f)
 
 @app.route("/")
 def index():
@@ -36,48 +51,29 @@ def sentiment_analysis():
     text = request_json["text"]
     if text == "":
         return {"code": 401, "error": "Missing text"}
+    
+    sentiment_classes = ["negative", "neutral", "positive"]
 
-    
-    # splitting our paragraph into sentences
-    text_sentences = tokenize.sent_tokenize(text)
-    
     # converting our text to tokens
-    sentiments = []
-    for sentence in text_sentences:
-        tokenized_sentence = tokenizer.texts_to_sequence(sentence)
-        sentiment_prediction = sentiment_prediction.predict(tokenized_sentence)
+    tokenized_sentences = sentiment_tokenizer.texts_to_sequences([text])
 
-        sentiment_classes = ["negative", "neutral", "positive"]
-        prediction_index = np.argmax(sentiment_prediction)
-        sentiments.append(sentiment_classes[prediction_index])
+    sentiment_prediction = sentiment_model.predict(tokenized_sentences)
+    sentiment = sentiment_classes[np.argmax(sentiment_prediction)]
+
+    tokenized_sentences = word_tokenizer.texts_to_sequences([text])
+
+    sentiment_prediction = word_model.predict(tokenized_sentences)
+    word_sentiment = sentiment_classes[np.argmax(sentiment_prediction)]
+
+        
     
-    p = 0
-    n = 0
-    ne = 0
-    for sentiment in sentiment_classes:
-        if sentiment == "positive":
-            p += 1
-        elif sentiment == "nuetral":
-            n += 1
-        elif sentiment == "negative":
-            ne += 1
-
-    if len(text_sentences) > 1:
-        if n > 2: # set a threshold for negativity in a paragraph
-            return {"Sentiment" : "Negative"}
-        else:
-            if p > ne:
-                return {"Sentiment" : "Positive"}
-            else:
-                return {"Sentiment" : "Neutral"}
+    if word_sentiment == sentiment:
+        return ({"sentiment" : sentiment})
+    elif sentiment == "Positive" or sentiment == "Positive":
+        return ({"sentiment" : sentiment})
     else:
-        if n == 1: # set a threshold for negativity in a paragraph
-            return {"Sentiment" : "Negative"}
-        else:
-            if p > ne:
-                return {"Sentiment" : "Positive"}
-            else:
-                return {"Sentiment" : "Neutral"}
+        return ({"sentiment" : word_sentiment})
+
 
     
 @app.route("/emotion", methods=["POST"])
@@ -91,54 +87,21 @@ def emotion_analysis():
     text = request_json["text"]
     if text == "":
         return {"code": 401, "error": "Missing text"}
-    
-        # setting up our tokenizer to format our data properly
-    df = load_data()
-    sentences = df["sentences"]
-    sentences = lower_case(sentences)
-    tokenizer, _, _, _, _ = tokenize_data(sentences)
-    
-    # splitting our paragraph into sentences
-    text_sentences = tokenize.sent_tokenize(text)
-    
+
+    with open('emotion_tokenizer.pickle', 'rb') as f:
+        emotion_tokenizer = pickle.load(f)
+
+
+    sentiment_classes = ["negative", "neutral", "positive"]
     # converting our text to tokens
-    emotions = []
-    for sentence in text_sentences:
-        tokenized_sentence = tokenizer.texts_to_sequence(sentence)
-        emotion_prediction = emotion_model.predict(tokenized_sentence)
+    sentiments = []
+    tokenized_sentences = emotion_tokenizer.texts_to_sequences([text])
 
-        """
-        emotion mappings:
-            [neutral, joy, sadness, fear, anger,  surprise, disgust, non-neutral]
-        """
+    sentiment_prediction = emotion_model.predict(tokenized_sentences)
+    emotion = sentiment_classes[np.argmax(sentiment_prediction)]
 
-        emotion_classes = ["neutral", "joy", "sadness", "fear", "anger", "surprise", "disgust", "non-neutral"]
-        prediction_index = np.argmax(emotion_prediction)
-        emotions.append(emotion_classes[prediction_index])
+    return ({"emotion" : emotion})
 
-        n, j, s, f, a, su, d, nn = 0, 0, 0, 0, 0, 0, 0, 0
-
-        for emotion in emotions:
-            if emotion == "neutral":
-                n += 1
-            elif emotion == "joy":
-                j += 1
-            elif emotion == "sadness":
-                s += 1
-            elif emotion == "fear":
-                f += 1
-            elif emotion == "anger":
-                a += 1
-            elif emotion == "surprise":
-                su += 1
-            elif emotion == "disgust":
-                d += 1
-            elif emotion == "non-neutral":
-                nn += 1
-        
-        emotion = max([n, j, s, f, a, su, d, nn])
-
-        return {"emotion" : emotion}
 
 
     
@@ -159,10 +122,14 @@ def gpt3_responses():
         chatlog = """Human: Hey, I am looking for some advice. Any chance you can help?
 AI: Yes, I can definitely help you. What's on your mind? 
 """         
+
+        print(before)
+
         i = 0
         for question in before:
             i += 1
-            chatlog += f"""Human: {question}\nAI: {bot_outputs[i]}\n"""
+            if i != len(before):
+              chatlog += f"""Human: {question}\nAI: {bot_outputs[i]}\n"""
         
         response = ask(current, chatlog)
 
@@ -184,4 +151,4 @@ AI: Yes, I can definitely help you. What's on your mind?
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    app.run(debug=True, host="127.0.0.1", port=int(os.environ.get("PORT", 8000)))
