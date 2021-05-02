@@ -13,12 +13,12 @@ from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt 
 import json
 import pickle
 from gpt import ask
 import string
 import collections
+import nltk
 from nltk import word_tokenize
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
@@ -56,26 +56,9 @@ def cluster_texts(texts, clusters):
 
     return clustering
 
-def grouping():
-  with open("bios.json", "r") as f:
-    request_json = json.load(f)
-
-  bios = request_json["bios"]
-
-  # process_text(bios)
-
-  clusters = len(bios) / 2
-  
-
-  clusters  = cluster_texts(bios, int(clusters))
-
-  pprint(dict(clusters))
-
-
 app = Flask(__name__)
 
-nltk.download("punkt")
-
+# load all the models
 sentiment_model = load_model("sentiment_analysis.h5")
 emotion_model = load_model("emotion_analysis.h5")
 word_model = load_model("word_analysis.h5")
@@ -207,22 +190,21 @@ def grouping():
     request_json = flask.request.json
     
     user = request_json["user"]
-    all_users = request_json["allUsers"]
+    all_users = request_json["all_users"]
 
     ids = []
     bios = []
 
-    for users in all_users:
-        ids.append(users["id"])
-        bios.append(users["bio"])
+    for user in all_users:
+        for id, bio in user:
+            ids.append(id)
+            bios.append(bio)
     
-
-    ids.append(user["id"])
-    bios.append(user["bio"])
-    to_predict = user["id"]
-    to_predict = ids.index(to_predict)
-
-    print(ids)
+    for id, bio in user:
+        ids.append(id)
+        bios.append(bio)
+        to_predict = id  
+    # process_text(bios)
 
     clusters = len(bios) / 2
 
@@ -234,10 +216,10 @@ def grouping():
 
     for item in clusters:
         for value in clusters[item]:
-          if value == to_predict:
-              to_predict_key = item
-          else:
-              pass
+            if value == to_predict:
+                to_predict_key = item
+            else:
+                pass
 
     profile_index = random.choice(clusters[to_predict_key])
 
