@@ -17,6 +17,18 @@ import matplotlib.pyplot as plt
 import json
 import pickle
 from gpt import ask
+import string
+import collections
+from nltk import word_tokenize
+from nltk.stem import PorterStemmer
+from nltk.corpus import stopwords
+from sklearn.cluster import KMeans
+from sklearn.feature_extraction.text import TfidfVectorizer
+from pprint import pprint
+import json
+import random
+nltk.download('stopwords')
+nltk.download('punkt')
 
 
 def process_text(text, stem=True):
@@ -195,21 +207,22 @@ def grouping():
     request_json = flask.request.json
     
     user = request_json["user"]
-    all_users = request_json["all_users"]
+    all_users = request_json["allUsers"]
 
     ids = []
     bios = []
 
-    for user in all_users:
-        for id, bio in user:
-        ids.append(id)
-        bios.append(bio)
+    for users in all_users:
+        ids.append(users["id"])
+        bios.append(users["bio"])
     
-    for id, bio in user:
-        ids.append(id)
-        bios.append(bio)
-        to_predict = id  
-    # process_text(bios)
+
+    ids.append(user["id"])
+    bios.append(user["bio"])
+    to_predict = user["id"]
+    to_predict = ids.index(to_predict)
+
+    print(ids)
 
     clusters = len(bios) / 2
 
@@ -221,10 +234,10 @@ def grouping():
 
     for item in clusters:
         for value in clusters[item]:
-        if value == to_predict:
-            to_predict_key = item
-        else:
-            pass
+          if value == to_predict:
+              to_predict_key = item
+          else:
+              pass
 
     profile_index = random.choice(clusters[to_predict_key])
 
